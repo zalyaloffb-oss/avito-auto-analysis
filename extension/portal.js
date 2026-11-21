@@ -49,7 +49,7 @@ function details(){
     }
     return null;
   };
-  return {title:document.querySelector('h1')?.innerText,price:document.querySelector('[itemprop="price"]')?.getAttribute('content')||document.querySelector('[data-marker="item-view/item-price"]')?.innerText,photo:document.querySelector('meta[property="og:image"]')?.content,fields:{'Год':field('год выпуска'),'Поколение':field('поколение'),'Владельцы':field('владельцев по птс','владельцы'),'Пробег':field('пробег'),'Привод':field('привод'),'КПП':field('коробка передач','кпп'),'Климат':field('климат-контроль','климатическая установка'),'Цвет':field('цвет')}};
+  return {title:document.querySelector('h1')?.innerText,price:document.querySelector('[itemprop="price"]')?.getAttribute('content')||document.querySelector('[data-marker="item-view/item-price"]')?.innerText,photo:document.querySelector('meta[property="og:image"]')?.content,fields:{'Марка':field('марка'),'Модель':field('модель'),'Год':field('год выпуска'),'Поколение':field('поколение'),'Владельцы':field('владельцев по птс','владельцы'),'Пробег':field('пробег'),'Привод':field('привод'),'КПП':field('коробка передач','кпп'),'Климат':field('климат-контроль','климатическая установка'),'Цвет':field('цвет')}};
 }
 function parsePrice(value) {
   const match = String(value ?? '').trim().match(/^(\d+(?:[ \u00a0\u202f]\d{3})*)(?:[.,]00)?\s*(?:₽|руб\.?)?$/i);
@@ -60,7 +60,7 @@ function parsePrice(value) {
 
 function updateValuation(prices, total) {
   const sorted = prices.slice().sort((a, b) => a - b);
-  $('#sample').textContent = 'Считано цен: ' + sorted.length + ' из ' + total +
+  $('#sample').textContent = 'Подходящих аналогов с ценой: ' + sorted.length + ' из ' + total +
     (sorted.length < 3 ? '. Для оценки нужны хотя бы три цены.' : sorted.length < 10 ? '. Малая выборка: оценка предварительная.' : '.');
   $('#bands').hidden = sorted.length < 3;
   if (sorted.length < 3) return;
@@ -71,6 +71,25 @@ function updateValuation(prices, total) {
     const amount = sorted[lower] + (sorted[Math.ceil(index)] - sorted[lower]) * (index - lower);
     amounts[i].textContent = Math.round(amount).toLocaleString('ru-RU') + ' ₽';
   });
+}
+
+function words(value) {
+  return String(value ?? '').toLowerCase().replace(/ё/g,'е').match(/[\p{L}\p{N}]+/gu)?.join(' ') || '';
+}
+function readVehicle() {
+  return Object.fromEntries(['brand','model','year','km','gen','drive','gear','owners'].map(key => [key, $('#own-'+key).value.trim()]));
+}
+function comparable(car, own) {
+  const f = car.fields;
+  const identity = words(own.brand+' '+own.model);
+  const named = f['Марка'] && f['Модель'];
+  if (named ? words(f['Марка']+' '+f['Модель']) !== identity : !(' '+words(car.title)+' ').includes(' '+identity+' ')) return false;
+  const year = String(f['Год'] || car.title).match(/\b(?:19|20)\d{2}\b/);
+  const km = String(f['Пробег'] ?? '').replace(/\s/g,'').match(/^(\d+)(?:км)?$/i);
+  if (!year || !km || Math.abs(Number(year[0])-Number(own.year)) > 1) return false;
+  if (Math.abs(Number(km[1])-Number(own.km)) > Math.max(10000,Number(own.km)*0.2)) return false;
+  return [['gen','Поколение'],['drive','Привод'],['gear','КПП'],['owners','Владельцы']].every(([key,label]) =>
+    !own[key] || (' '+words(f[label])+' ').includes(' '+words(own[key])+' '));
 }
 
 function show(car,url){
@@ -86,7 +105,10 @@ $('form').onsubmit=async event=>{
   updateValuation(prices, 0);
   event.preventDefault();$('button').disabled=true;$('main').replaceChildren();
   try{
-    const u=new URL($('#url').value.trim());
+    const own = readVehicle();
+    const supplied = $('#url').value.trim();
+    const u = new URL(supplied || 'https://www.avito.ru/all/avtomobili');
+    if (!supplied) u.searchParams.set('q', own.brand+' '+own.model);
     if(u.origin!=='https://www.avito.ru'||u.username||u.password||u.pathname.split('/')[2]!=='avtomobili')throw Error('Введите ссылку на выдачу автомобилей www.avito.ru.');
     $('#status').textContent='Открываю выдачу…';
     const seen=new Set();
@@ -102,9 +124,13 @@ $('form').onsubmit=async event=>{
         try{
           const car=await read(url,details);
           if(!car?.title){skipped++;continue;}
+          const matches = comparable(car, own);
           show(car,url);
+          const note = document.createElement('strong');
+          note.textContent = matches ? 'Подходит для сравнения' : 'Вне сравнения';
+          $('main').lastElementChild.append(note);
           const price = parsePrice(car.price);
-          if (price !== null) prices.push(price);
+          if (matches && price !== null) prices.push(price);
           updateValuation(prices, $('main').children.length);
         }catch(error){
           if(error.message.includes('проверку доступа'))throw error;

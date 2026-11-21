@@ -20,7 +20,10 @@ function normalize(raw, listing) {
   let climate=extract(lines,['климатическая установка','климат-контроль','климат контроль']);
   let equipment=lines.match(/(?:^|\n)\s*(климат-контроль|климат контроль)\s*(?:\n|$)/i);
   let c=climate ? (/нет|отсутств/i.test(climate)?false:/климат/i.test(climate)?true:null) : equipment?true:null;
-  return {title: raw.title || listing.title || null, price: numeric(raw.price) ?? listing.price ?? null,
+  let title=raw.title || listing.title || null;
+  let yearText=extract(lines,['год выпуска','год']);
+  let yearMatch=String(yearText||title||'').match(/(?:19|20)\d{2}/);
+  return {title, make:extract(lines,['марка','марка автомобиля']), model:extract(lines,['модель','модель автомобиля']), generation:extract(lines,['поколение']), year:yearMatch?Number(yearMatch[0]):null, price: numeric(raw.price) ?? listing.price ?? null,
     owners: owner, mileage: numeric(mileage), drive:extract(lines,['привод']), gearbox:extract(lines,['коробка передач','коробка','кпп']),
     climate:c, color:extract(lines,['цвет']), photo:raw.photo||listing.photo||null,url:listing.url};
 }

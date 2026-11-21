@@ -51,6 +51,28 @@ function details(){
   };
   return {title:document.querySelector('h1')?.innerText,price:document.querySelector('[itemprop="price"]')?.getAttribute('content')||document.querySelector('[data-marker="item-view/item-price"]')?.innerText,photo:document.querySelector('meta[property="og:image"]')?.content,fields:{'Год':field('год выпуска'),'Поколение':field('поколение'),'Владельцы':field('владельцев по птс','владельцы'),'Пробег':field('пробег'),'Привод':field('привод'),'КПП':field('коробка передач','кпп'),'Климат':field('климат-контроль','климатическая установка'),'Цвет':field('цвет')}};
 }
+function parsePrice(value) {
+  const match = String(value ?? '').trim().match(/^(\d+(?:[ \u00a0\u202f]\d{3})*)(?:[.,]00)?\s*(?:₽|руб\.?)?$/i);
+  if (!match) return null;
+  const price = Number(match[1].replace(/\s/g, ''));
+  return Number.isSafeInteger(price) && price > 0 ? price : null;
+}
+
+function updateValuation(prices, total) {
+  const sorted = prices.slice().sort((a, b) => a - b);
+  $('#sample').textContent = 'Считано цен: ' + sorted.length + ' из ' + total +
+    (sorted.length < 3 ? '. Для оценки нужны хотя бы три цены.' : sorted.length < 10 ? '. Малая выборка: оценка предварительная.' : '.');
+  $('#bands').hidden = sorted.length < 3;
+  if (sorted.length < 3) return;
+  const amounts = document.querySelectorAll('#bands dd');
+  [0.25, 0.5, 0.75].forEach((fraction, i) => {
+    const index = (sorted.length - 1) * fraction;
+    const lower = Math.floor(index);
+    const amount = sorted[lower] + (sorted[Math.ceil(index)] - sorted[lower]) * (index - lower);
+    amounts[i].textContent = Math.round(amount).toLocaleString('ru-RU') + ' ₽';
+  });
+}
+
 function show(car,url){
   const article=document.createElement('article'),link=document.createElement('a');
   link.href=url;link.target='_blank';link.rel='noopener';link.textContent=car.title;article.append(link);
@@ -59,6 +81,9 @@ function show(car,url){
   $('main').append(article);
 }
 $('form').onsubmit=async event=>{
+  const prices = [];
+  $('#valuation').hidden = false;
+  updateValuation(prices, 0);
   event.preventDefault();$('button').disabled=true;$('main').replaceChildren();
   try{
     const u=new URL($('#url').value.trim());
@@ -78,6 +103,9 @@ $('form').onsubmit=async event=>{
           const car=await read(url,details);
           if(!car?.title){skipped++;continue;}
           show(car,url);
+          const price = parsePrice(car.price);
+          if (price !== null) prices.push(price);
+          updateValuation(prices, $('main').children.length);
         }catch(error){
           if(error.message.includes('проверку доступа'))throw error;
           skipped++;

@@ -16,7 +16,7 @@ function parseFilters(input){
   return {make,model,generation,city:city||'rossiya',year:integer('year',1886,2100),priceMax:integer('priceMax',1,1e10),mileageMax:integer('mileageMax',0,1e7),limit:integer('limit',1,30)||10};
 }
 function searchUrl(f){let u=new URL(`https://www.avito.ru/${f.city}/avtomobili`);u.searchParams.set('q',[f.make,f.model].filter(Boolean).join(' '));if(f.priceMax)u.searchParams.set('pmax',String(f.priceMax));return u.href}
-async function ensureBrowser(){if(!context){context=await chromium.launchPersistentContext(path.join(__dirname,'.avito-profile'),{channel:'chrome',headless:false,viewport:{width:1280,height:900}});context.on('close',()=>{context=null});}return context;}
+async function ensureBrowser(){if(!context){context=await chromium.launchPersistentContext(path.join(__dirname,'.avito-portal-profile'),{channel:'chrome',headless:false,viewport:{width:1280,height:900}});context.on('close',()=>{context=null});}return context;}
 async function login(){let ctx=await ensureBrowser();let page=ctx.pages()[0]||await ctx.newPage();await page.goto('https://www.avito.ru/',{waitUntil:'domcontentloaded',timeout:45000});return {message:'Открылось окно Авито. Войдите в аккаунт при необходимости и вернитесь на портал.'}}
 function blocked(text){return /доступ ограничен|подтвердите, что вы не робот|подозрительн.{0,15}активност|captcha/i.test(text)}
 async function collect(f){

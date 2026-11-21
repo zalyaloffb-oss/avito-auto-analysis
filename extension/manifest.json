@@ -1,1 +1,18 @@
-{"manifest_version":3,"name":"Автоанализ","description":"Анализ трёх объявлений по ссылке на поиск автомобилей Авито.","version":"1.0.0","action":{"default_title":"Открыть Автоанализ"},"background":{"service_worker":"open.js"},"permissions":["scripting"],"host_permissions":["https://www.avito.ru/*"]}
+{
+  "manifest_version": 3,
+  "name": "Автоанализ",
+  "description": "Отчёты по объявлениям со страниц поиска автомобилей Авито.",
+  "version": "1.1.0",
+  "action": {
+    "default_title": "Открыть Автоанализ"
+  },
+  "background": {
+    "service_worker": "open.js"
+  },
+  "permissions": [
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://www.avito.ru/*"
+  ]
+}
